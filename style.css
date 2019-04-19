@@ -1,0 +1,11 @@
+@import url('https://fonts.googleapis.com/css?family=Quattrocento');
+
+.cell:hover {
+    stroke: black;
+    stroke-width: 1px;
+}
+
+#yAxisLabel, #xAxisLabel, #title, #description, #y-axis, #x-axis, #legend {
+  font-family: Quattrocento, arial;
+  font-size: 12px;
+}

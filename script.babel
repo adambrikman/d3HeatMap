@@ -1,0 +1,262 @@
+// Initialize dataset array
+var dataset = [];
+
+// Create domain for legend
+var tempLegend = [2.8, 3.9, 5.0, 6.1, 7.2, 8.3, 9.5, 10.6, 11.7,12.8];
+
+// Initialize temperature variables
+let baseTemperature = 0;
+let maxTemperature = 0;
+let minTemperature = 10;
+
+// Parse JSON data and push to dataset array
+document.addEventListener('DOMContentLoaded',function() {
+  req=new XMLHttpRequest();
+  req.open("GET", 'https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/global-temperature.json', true);
+   req.send();
+  req.onload=function() {
+    json=JSON.parse(req.responseText);
+    
+    baseTemperature = json.baseTemperature;
+    
+    for(var prop in json.monthlyVariance) {
+
+      // Update the netTemperature variable (basetemperature + variance)
+      let netTemperature = (baseTemperature+json.monthlyVariance[prop].variance);
+         
+      /* Update monthlyVariance object by creating a netTemperature
+         property, set the amount calculated above */
+      json.monthlyVariance[prop].netTemperature = netTemperature;
+      json.monthlyVariance[prop].month = json.monthlyVariance[prop].month-1;
+   
+      // Update minTemperature and maxTemperature variables
+      if(json.monthlyVariance[prop].netTemperature > maxTemperature) {
+        maxTemperature = json.monthlyVariance[prop].netTemperature;
+      } else if (json.monthlyVariance[prop].netTemperature < minTemperature) {
+        minTemperature = json.monthlyVariance[prop].netTemperature;      
+      }
+      
+      dataset.push(json.monthlyVariance[prop]);
+    }
+    
+// Set constants of width, height & padding
+const h = 550; 
+const w = 1450;
+const p = 120;
+   
+// Find minimum and maximum of X Coordinates
+let minYear = d3.min(dataset, (d) => d.year);
+let maxYear = d3.max(dataset, (d) => d.year);
+    
+// Find minimum and maximum of Y Coordinates
+let minMonth = d3.min(dataset, (d) => d.month);
+let maxMonth = d3.max(dataset, (d) => d.month);
+
+// Create array of months for Y-Axis
+let months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+// Create array of colors for the heatmap and legend
+let colors = ["#6c00d1", "#000cb5", "#2450e2", "#5ae3ed", "#c9faff", "#ffff00", "#ffa723", "#ff7e00", "#ff3911", "#ff0800", "#911000"];
+    
+// Parse time of Y coordinate data. D3 Documentation: https://github.com/d3/d3-time-format
+var parseTime = d3.timeParse("%m");
+
+// Format time for the month to be used in the tooltip
+var monthFormat = d3.timeFormat("%B");
+    
+// create an SVG element
+const svg = d3.select("body")
+            .append("svg")
+            .attr("height", h)
+            .attr("width", w);
+
+// Create div for tooltip
+var tooltip = d3.selectAll("body")
+                .append("div")
+                .attr("id","tooltip")
+                .style("opacity", 0);
+    
+// Create the scale for X Axis
+var xScale = d3.scaleLinear()
+                .domain([minYear,maxYear])
+                .range([p, w-p]);
+
+// Create scale for the Y Axis. Band scale documentation: https://github.com/d3/d3-scale/blob/master/README.md#band-scales
+var yScale = d3.scaleBand()
+               .domain(months)
+               .range([p, h-p]);
+
+// Function to update color per temperature legend
+function temperatureLegend(elem) {
+      if(elem < tempLegend[0]) {
+        return colors[0];
+      } else if(elem >= tempLegend[0] && elem < tempLegend[1]) {
+        return colors[1];
+      } else if(elem >= tempLegend[1] && elem < tempLegend[2]) {
+        return colors[2];
+      } else if(elem >= tempLegend[2] && elem < tempLegend[3]) {
+        return colors[3];
+      } else if(elem >= tempLegend[3] && elem < tempLegend[4]) {
+        return colors[4];
+      } else if(elem >= tempLegend[4] && elem < tempLegend[5]) {
+        return colors[5];
+      } else if(elem >= tempLegend[5] && elem < tempLegend[6]) {
+        return colors[6];
+      } else if(elem >= tempLegend[6] && elem < tempLegend[7]) {
+        return colors[7];
+      } else if(elem >= tempLegend[7] && elem < tempLegend[8]) {
+        return colors[8];
+      } else if(elem >= tempLegend[8] && elem < tempLegend[9]) {
+        return colors[9];
+      } else if(elem >= tempLegend[9]) {
+        return colors[10];
+      }
+}
+
+// Draw all data as rectangles on the heatmap
+svg.selectAll("rect")
+   .data(dataset)
+   .enter()
+   .append("rect")
+   .attr("x", (d) => xScale(d.year))
+   .attr("y", (d) => yScale(monthFormat(new Date(parseTime(d.month+1))))) 
+   .attr("width", w/(maxYear-(minYear-60)))
+   .attr("height", h/21.5)
+   .style("fill", (d) => {
+        return temperatureLegend(d.netTemperature);
+      })
+    .attr("class", "cell")
+    .attr("data-month", (d) => d.month)
+    .attr("data-year", (d) => d.year)  
+    .attr("data-temp", (d) => d.netTemperature)
+
+    // Create tooltip for plotted data
+    .on("mouseover", function(d) {
+                tooltip.style("opacity", .9)
+                        .style("z-index", 10)
+                        .style("border-radius", 5 + "px")
+                        .style("position", "absolute")
+                        .style("font-size", "14px")
+                        .style("left", (d3.event.pageX-40) + "px")
+                        .style("top", (d3.event.pageY-100) + "px")
+                        .style("box-shadow", "1px 1px 10px")
+                        .style("color", "white")
+                        .style("background", "black")
+                        .style("padding", "10px")
+                        .style("text-align", "center")
+                        .style("pointer-events", "none")
+                        .html(d.year + " - " + monthFormat(new Date(parseTime(d.month+1))) + "<br/>" + "Net Temperature: "+ d.netTemperature.toFixed(1) + "℃" + "<br/>" + "Variance: " + d.variance.toFixed(1) + "℃")
+                        .attr("data-year", d.year)
+            })				
+            .on("mouseout", function(d) {		
+                tooltip.style("opacity", 0);	
+        });
+   
+// Format X-Axis
+const xAxis = d3.axisBottom(xScale)
+                .tickFormat(d3.format("d"))
+                .tickSizeOuter(0)
+                .ticks(20);
+          
+// Format Y-Axis
+const yAxis = d3.axisLeft(yScale)
+                .tickSizeOuter(0);
+
+// Create heatmap title
+let title = d3.select("body")
+              .append("div")
+              .text("Monthly Global Land-Surface Temperature")
+              .attr("id", "title")
+              .style("position", "relative")
+              .style("font-size", "26px")
+              .style("bottom", (h-(p/4)) + "px")
+              .style("left", 500 + "px");
+
+// Create description for heatmap
+let subtitle = d3.select("body")
+                  .append("div")
+                  .text("1753 - 2015: base temperature 8.66℃")
+                  .attr("id", "description")
+                  .style("position", "relative")
+                  .style("font-size", "18px")
+                  .style("bottom", (h-(p/4)-5) + "px")
+                  .style("left", 575 + "px");  
+    
+// Create a label for the Y-Axis.
+var yText = d3.select("body")
+    .append("div")
+    .attr("id", "yAxisLabel")
+    .html("Months")
+    .style("position", "relative")
+    .style("font-size", 20 + "px")
+    .style("display", "inline-block")
+    .style("transform", "rotate(270deg)")
+    .style("bottom", p*3 + "px")
+
+// Create a label for the X-Axis
+var xText = d3.select("body")
+    .append("div")
+    .attr("id", "xAxisLabel")
+    .html("Years")
+    .style("position", "relative")
+    .style("font-size", 20 + "px")
+    .style("bottom", (p*1.4) + "px")
+    .style("left", 650 + "px");
+    
+// Draw X & Y-Axis
+svg.append("g")
+    .attr("transform", "translate(-1," + (h-p) + ")")
+    .attr("id", "x-axis")
+    .call(xAxis);
+
+svg.append("g")
+    .attr("transform", "translate(119," + 0 + ")")
+    .attr("id", "y-axis")
+    .call(yAxis);
+    
+/* Create Legend */
+
+/* NOTE: Code below based on Mike Bostock's key from a Threshold Scale here: https://bl.ocks.org/mbostock/4573883 */
+    
+// Set domain and range of legend
+var threshold = d3.scaleThreshold()
+    .domain(tempLegend)
+    .range(colors);
+       
+// Set scale for legend
+var x = d3.scaleLinear()
+    .domain([minTemperature, maxTemperature])
+    .range([0, 400]);
+
+// Format Legend Axis
+var legendAxis = d3.axisBottom(x)
+    .tickSize(7)
+    .tickFormat(d3.format(".1f"))
+    .tickValues(threshold.domain());
+
+// Create g element for legend
+var g = svg.append("g").call(legendAxis)
+.attr("id", "legend")
+.attr("transform", "translate(125," + (h-20) + ")");
+
+// Remove "endcaps" of the x-axis on the legend
+g.select(".domain")
+    .remove();
+
+// Draw legend
+g.selectAll("rect")
+  .data(threshold.range().map(function(color) {
+    var d = threshold.invertExtent(color);
+    if (d[0] == null) d[0] = x.domain()[0];
+    if (d[1] == null) d[1] = x.domain()[1];
+    return d;
+  }))
+  .enter().insert("rect", ".tick")
+    .attr("stroke", "black")   
+    .attr("height", 30)
+    .attr("x", function(d) { return x(d[0]) ; })
+    .attr("y", -30 + "px")
+    .attr("width", function(d) { return x(d[1]) - x(d[0]); })
+    .attr("fill", function(d) { return threshold(d[0]); });
+  }
+})
